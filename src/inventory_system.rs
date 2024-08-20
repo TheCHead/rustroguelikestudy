@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use super::{WantsToPickupItem, Name, InBackpack, Position, gamelog::GameLog, Map, WantsToUseItem, Consumable, ProvidesHealing, InflictsDamage, CombatStats, WantsToDropItem, SufferDamage, AreaOfEffect};
+use super::{WantsToPickupItem, Name, InBackpack, Position, gamelog::GameLog, Map, WantsToUseItem, Consumable, ProvidesHealing, InflictsDamage, CombatStats, WantsToDropItem, SufferDamage, AreaOfEffect, Confusion};
 
 pub struct ItemCollectionSystem {}
 
@@ -45,11 +45,12 @@ impl<'a> System<'a> for ItemUseSystem {
                         ReadStorage<'a, InflictsDamage>,
                         ReadStorage<'a, AreaOfEffect>,
                         WriteStorage<'a, CombatStats>,
-                        WriteStorage<'a, SufferDamage>
+                        WriteStorage<'a, SufferDamage>,
+                        WriteStorage<'a, Confusion>
                       );
 
     fn run(&mut self, data : Self::SystemData) {
-        let (player_entity, mut gamelog, map, entities, mut wants_use, names, consumables, healing, inflict_damage, aoe, mut combat_stats, mut suffer_damage) = data;
+        let (player_entity, mut gamelog, map, entities, mut wants_use, names, consumables, healing, inflict_damage, aoe, mut combat_stats, mut suffer_damage, mut confused) = data;
 
         for (entity, useitem) in (&entities, &wants_use).join() {
             let mut used_item = true;
@@ -95,6 +96,7 @@ impl<'a> System<'a> for ItemUseSystem {
                             if entity == *player_entity {
                                 gamelog.entries.push(format!("You use the {}, healing {} hp.", names.get(useitem.item).unwrap().name, healer.heal_amount));
                             }
+                            used_item = true;
                         }                        
                     }
                 }
@@ -118,6 +120,30 @@ impl<'a> System<'a> for ItemUseSystem {
                         used_item = true;
                     }
                 }
+            }
+
+            // Can it pass along confusion? Note the use of scopes to escape from the borrow checker!
+            let mut add_confusion = Vec::new();
+            {
+                let causes_confusion = confused.get(useitem.item);
+                match causes_confusion {
+                    None => {}
+                    Some(confusion) => {
+                        used_item = false;
+                        for mob in targets.iter() {
+                            add_confusion.push((*mob, confusion.turns ));
+                            if entity == *player_entity {
+                                let mob_name = names.get(*mob).unwrap();
+                                let item_name = names.get(useitem.item).unwrap();
+                                gamelog.entries.push(format!("You use {} on {}, confusing them.", item_name.name, mob_name.name));
+                            }
+                            used_item = true;
+                        }
+                    }
+                }
+            }
+            for mob in add_confusion.iter() {
+                confused.insert(mob.0, Confusion{ turns: mob.1 }).expect("Unable to insert status");
             }
 
             entities.delete(useitem.item).expect("Delete failed");
