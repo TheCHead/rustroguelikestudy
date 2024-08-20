@@ -1,6 +1,6 @@
 use specs::prelude::*;
 
-use super::{WantsToPickupItem, Name, InBackpack, Position, gamelog::GameLog, WantsToUseItem, Consumable, ProvidesHealing, CombatStats, WantsToDropItem};
+use super::{WantsToPickupItem, Name, InBackpack, Position, gamelog::GameLog, Map, WantsToUseItem, Consumable, ProvidesHealing, InflictsDamage, CombatStats, WantsToDropItem, SufferDamage};
 
 pub struct ItemCollectionSystem {}
 
@@ -36,18 +36,24 @@ impl<'a> System<'a> for ItemUseSystem {
     #[allow(clippy::type_complexity)]
     type SystemData = ( ReadExpect<'a, Entity>,
                         WriteExpect<'a, GameLog>,
+                        ReadExpect<'a, Map>,
                         Entities<'a>,
                         WriteStorage<'a, WantsToUseItem>,
                         ReadStorage<'a, Name>,
                         ReadStorage<'a, Consumable>,
                         ReadStorage<'a, ProvidesHealing>,
-                        WriteStorage<'a, CombatStats>
+                        ReadStorage<'a, InflictsDamage>,
+                        WriteStorage<'a, CombatStats>,
+                        WriteStorage<'a, SufferDamage>
                       );
 
     fn run(&mut self, data : Self::SystemData) {
-        let (player_entity, mut gamelog, entities, mut wants_use, names, consumables, healing, mut combat_stats) = data;
+        let (player_entity, mut gamelog, map, entities, mut wants_use, names, consumables, healing, inflict_damage, mut combat_stats, mut suffer_damage) = data;
 
         for (entity, useitem, stats) in (&entities, &wants_use, &mut combat_stats).join() {
+            let mut used_item = true;
+
+            // Manage healing items
             let item_heals = healing.get(useitem.item);
             match item_heals {
                 None => {}
@@ -56,9 +62,32 @@ impl<'a> System<'a> for ItemUseSystem {
                     if entity == *player_entity {
                         gamelog.entries.push(format!("You drink the {}, healing {} hp.", names.get(useitem.item).unwrap().name, healer.heal_amount));
                     }
-                    entities.delete(useitem.item).expect("Delete failed");
                 }
             }
+
+
+            // If it inflicts damage, apply it to the target cell
+            let item_damages = inflict_damage.get(useitem.item);
+            match item_damages {
+                None => {}
+                Some(damage) => {
+                    let target_point = useitem.target.unwrap();
+                    let idx = map.xy_idx(target_point.x, target_point.y);
+                    used_item = false;
+                    for mob in map.tile_content[idx].iter() {
+                        SufferDamage::new_damage(&mut suffer_damage, *mob, damage.damage);
+                        if entity == *player_entity {
+                            let mob_name = names.get(*mob).unwrap();
+                            let item_name = names.get(useitem.item).unwrap();
+                            gamelog.entries.push(format!("You use {} on {}, inflicting {} hp.", item_name.name, mob_name.name, damage.damage));
+                        }
+
+                        used_item = true;
+                    }
+                }
+            }
+
+            entities.delete(useitem.item).expect("Delete failed");
         }
 
         wants_use.clear();
