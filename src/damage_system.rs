@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use specs::prelude::*;
 use super::{CombatStats, SufferDamage, Player, gamelog::GameLog, Name};
 use rltk::console;
@@ -13,6 +15,7 @@ impl<'a> System<'a> for DamageSystem {
 
         for (mut stats, damage) in (&mut stats, &damage).join() {
             stats.hp -= damage.amount.iter().sum::<i32>();
+            stats.hp = max(0, stats.hp);
         }
 
         damage.clear();
