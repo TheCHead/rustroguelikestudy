@@ -2,6 +2,14 @@ use rltk::{ RGB, Rltk, Point, VirtualKeyCode };
 use specs::prelude::*;
 use super::{Player, CombatStats, gamelog::GameLog, Map, Name, Position, State, InBackpack, Viewshed};
 
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum MainMenuSelection { NewGame, LoadGame, Quit }
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum MainMenuResult { NoSelection{ selected : MainMenuSelection }, Selected{ selected: MainMenuSelection } }
+
+
 pub fn draw_ui(ecs: &World, ctx : &mut Rltk) {
     ctx.draw_box(0, 43, 79, 6, RGB::named(rltk::WHITE), RGB::named(rltk::BLACK));
 
