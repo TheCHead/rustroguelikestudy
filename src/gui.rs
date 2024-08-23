@@ -33,7 +33,11 @@ pub fn draw_ui(ecs: &World, ctx : &mut Rltk) {
     // Draw mouse cursor
     let mouse_pos = ctx.mouse_pos();
     ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
-    draw_tooltips(ecs, ctx)
+    draw_tooltips(ecs, ctx);
+
+    let map = ecs.fetch::<Map>();
+    let depth = format!("Depth: {}", map.depth);
+    ctx.print_color(2, 43, RGB::named(rltk::YELLOW), RGB::named(rltk::BLACK), &depth);
 }
 
 fn draw_tooltips(ecs: &World, ctx : &mut Rltk) {
