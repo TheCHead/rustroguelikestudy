@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use specs::prelude::*;
-use super::{CombatStats, SufferDamage, Player, gamelog::GameLog, Name};
+use super::{CombatStats, SufferDamage, Player, gamelog::GameLog, Name, RunState};
 use rltk::console;
 
 pub struct DamageSystem {}
@@ -42,7 +42,10 @@ pub fn delete_the_dead(ecs : &mut World) {
                         }
                         dead.push(entity)
                     }
-                    Some(_) => log.entries.push(format!("You are dead"))
+                    Some(_) => {
+                        let mut runstate = ecs.write_resource::<RunState>();
+                        *runstate = RunState::GameOver;
+                    }
                 }
             }
         }
