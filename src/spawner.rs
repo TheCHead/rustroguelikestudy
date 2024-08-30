@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use rltk::{ RGB, RandomNumberGenerator };
 use specs::prelude::*;
 use specs::saveload::{MarkedBuilder, SimpleMarker};
-use super::{CombatStats, Player, Renderable, Name, Position, Viewshed, Monster, BlocksTile, Rect, map::MAPWIDTH, Item, Consumable, ProvidesHealing, Ranged, InflictsDamage, AreaOfEffect, Confusion, SerializeMe, random_table::RandomTable, Equippable, EquipmentSlot, MeleePowerBonus, DefenseBonus};
+use super::{CombatStats, Player, Renderable, Name, Position, Viewshed, Monster, BlocksTile, Rect, map::MAPWIDTH, Item,
+    Consumable, ProvidesHealing, Ranged, InflictsDamage, AreaOfEffect, Confusion, SerializeMe, random_table::RandomTable,
+    Equippable, EquipmentSlot, MeleePowerBonus, DefenseBonus, HungerClock, HungerState, ProvidesFood};
 
 const MAX_MONSTERS : i32 = 4;
 const MAX_ITEMS : i32 = 2;
@@ -24,6 +26,7 @@ pub fn player(ecs : &mut World, player_x : i32, player_y : i32) -> Entity {
         .with(Viewshed{ visible_tiles : Vec::new(), range: 8, dirty: true })
         .with(Name{name: "Player".to_string() })
         .with(CombatStats{ max_hp: 30, hp: 30, defense: 2, power: 5 })
+        .with(HungerClock{ state: HungerState::WellFed, duration: 20 })
         .marked::<SimpleMarker<SerializeMe>>()
         .build()
 }
@@ -93,6 +96,7 @@ pub fn spawn_room(ecs: &mut World, room : &Rect, map_depth : i32) {
             "Shield" => shield(ecs, x, y),
             "Longsword" => longsword(ecs, x, y),
             "Tower Shield" => tower_shield(ecs, x, y),
+            "Rations" => rations(ecs, x, y),
             _ => {}
         }
     }
@@ -182,6 +186,7 @@ fn room_table(map_depth: i32) -> RandomTable {
         .add("Shield", 3)
         .add("Longsword", map_depth - 1)
         .add("Tower Shield", map_depth - 1)
+        .add("Rations", 10)
 }
 
 fn dagger(ecs: &mut World, x: i32, y: i32) {
@@ -248,6 +253,23 @@ fn tower_shield(ecs: &mut World, x: i32, y: i32) {
         .with(Item{})
         .with(Equippable{ slot: EquipmentSlot::Shield })
         .with(DefenseBonus{ defense: 3 })
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
+
+fn rations(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position{ x, y })
+        .with(Renderable{
+            glyph: rltk::to_cp437('%'),
+            fg: RGB::named(rltk::GREEN),
+            bg: RGB::named(rltk::BLACK),
+            render_order: 2
+        })
+        .with(Name{ name : "Rations".to_string() })
+        .with(Item{})
+        .with(ProvidesFood{})
+        .with(Consumable{})
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
