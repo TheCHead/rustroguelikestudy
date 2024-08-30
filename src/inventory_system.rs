@@ -1,10 +1,10 @@
 use specs::prelude::*;
 
-use crate::{HungerClock, ProvidesFood};
+use crate::{HungerClock, MagicMapper, ProvidesFood};
 
 use super::{WantsToPickupItem, Name, InBackpack, Position, gamelog::GameLog, Map, WantsToUseItem, Consumable, ProvidesHealing, 
     InflictsDamage, CombatStats, WantsToDropItem, SufferDamage, AreaOfEffect, Confusion, Equippable, Equipped, WantsToRemoveItem,
-    particle_system::ParticleBuilder, HungerState};
+    particle_system::ParticleBuilder, HungerState, RunState};
 
 pub struct ItemCollectionSystem {}
 
@@ -40,7 +40,7 @@ impl<'a> System<'a> for ItemUseSystem {
     #[allow(clippy::type_complexity)]
     type SystemData = ( ReadExpect<'a, Entity>,
                         WriteExpect<'a, GameLog>,
-                        ReadExpect<'a, Map>,
+                        WriteExpect<'a, Map>,
                         Entities<'a>,
                         WriteStorage<'a, WantsToUseItem>,
                         ReadStorage<'a, Name>,
@@ -57,13 +57,16 @@ impl<'a> System<'a> for ItemUseSystem {
                         WriteExpect<'a, ParticleBuilder>,
                         ReadStorage<'a, Position>,
                         WriteStorage<'a, HungerClock>,
-                        ReadStorage<'a, ProvidesFood>
+                        ReadStorage<'a, ProvidesFood>,
+                        ReadStorage<'a, MagicMapper>,
+                        WriteExpect<'a, RunState>
                       );
 
     fn run(&mut self, data : Self::SystemData) {
-        let (player_entity, mut gamelog, map, entities, mut wants_use, names, 
+        let (player_entity, mut gamelog, mut map, entities, mut wants_use, names, 
             consumables, healing, inflict_damage, mut combat_stats, mut suffer_damage, 
-            aoe, mut confused, equippable, mut equipped, mut backpack, mut particle_builder, positions, mut hunger_clocks, provides_food) = data;
+            aoe, mut confused, equippable, mut equipped, mut backpack, mut particle_builder, 
+            positions, mut hunger_clocks, provides_food, magic_mapper, mut runstate) = data;
 
         for (entity, useitem) in (&entities, &wants_use).join() {
             let mut used_item = true;
@@ -166,6 +169,17 @@ impl<'a> System<'a> for ItemUseSystem {
                             }
                         }                        
                     }
+                }
+            }
+
+            // If its a magic mapper...
+            let is_mapper = magic_mapper.get(useitem.item);
+            match is_mapper {
+                None => {}
+                Some(_) => {
+                    used_item = true;
+                    gamelog.entries.push("The map is revealed to you!".to_string());
+                    *runstate = RunState::MagicMapReveal{ row : 0};
                 }
             }
 
