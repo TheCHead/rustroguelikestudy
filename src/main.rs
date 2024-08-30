@@ -34,6 +34,7 @@ pub mod saveload_system;
 mod random_table;
 mod particle_system;
 mod hunger_system;
+mod rex_assets;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState { AwaitingInput,
@@ -456,6 +457,7 @@ fn main() -> rltk::BError {
     gs.ecs.insert(RunState::MainMenu { menu_selection: gui::MainMenuSelection::NewGame });
     gs.ecs.insert(gamelog::GameLog{ entries : vec!["Welcome to Rusty Roguelike".to_string()] });
     gs.ecs.insert(particle_system::ParticleBuilder::new());
+    gs.ecs.insert(rex_assets::RexAssets::new());
     
     rltk::main_loop(context, gs)
 }
