@@ -1,7 +1,7 @@
 use rltk::{VirtualKeyCode, Rltk, Point};
 use specs::prelude::*;
 use super::{Position, Player, State, Map, Viewshed, RunState, CombatStats, WantsToMelee, gamelog::GameLog, WantsToPickupItem, 
-    Item, TileType, Monster, HungerClock, HungerState};
+    Item, TileType, Monster, HungerClock, HungerState, EntityMoved};
 use std::cmp::{min, max};
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
@@ -10,6 +10,7 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut viewsheds = ecs.write_storage::<Viewshed>();
     let map = ecs.fetch::<Map>();
     let combat_stats = ecs.read_storage::<CombatStats>();
+    let mut entity_moved = ecs.write_storage::<EntityMoved>();
 
     let entities = ecs.entities();
     let mut wants_to_melee = ecs.write_storage::<WantsToMelee>();
@@ -29,6 +30,8 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
         if !map.blocked[destination_idx] {
             pos.x = min(79 , max(0, pos.x + delta_x));
             pos.y = min(49, max(0, pos.y + delta_y));
+
+            entity_moved.insert(entity, EntityMoved{}).expect("Unable to insert marker");
 
             viewshed.dirty = true;
 
