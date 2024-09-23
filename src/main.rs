@@ -38,6 +38,8 @@ mod rex_assets;
 mod trigger_system;
 pub mod map_builders;
 
+const SHOW_MAPGEN_VISUALIZER : bool = true;
+
 #[derive(PartialEq, Copy, Clone)]
 pub enum RunState { AwaitingInput,
     PreRun,
@@ -51,11 +53,16 @@ pub enum RunState { AwaitingInput,
     NextLevel,
     ShowRemoveItem,
     GameOver,
-    MagicMapReveal { row : i32 }
+    MagicMapReveal { row : i32 },
+    MapGeneration
 }
 
 struct State {
     ecs: World,
+    mapgen_next_state : Option<RunState>,
+    mapgen_history : Vec<Map>,
+    mapgen_index : usize,
+    mapgen_timer : f32
 }
 
 impl GameState for State {
@@ -70,10 +77,11 @@ impl GameState for State {
         particle_system::cull_dead_particles(&mut self.ecs, ctx);
 
         match newrunstate {
+            
             RunState::MainMenu{..} => {}
             RunState::GameOver{..} => {}
             _ => {
-                draw_map(&self.ecs, ctx);
+                draw_map(&self.ecs.fetch::<Map>(), ctx);
 
                 {
                     let positions = self.ecs.read_storage::<Position>();
@@ -94,6 +102,22 @@ impl GameState for State {
         }
 
         match newrunstate {
+            RunState::MapGeneration => {
+                if !SHOW_MAPGEN_VISUALIZER {
+                    newrunstate = self.mapgen_next_state.unwrap();
+                }
+                ctx.cls();                
+                draw_map(&self.mapgen_history[self.mapgen_index], ctx);
+        
+                self.mapgen_timer += ctx.frame_time_ms;
+                if self.mapgen_timer > 300.0 {
+                    self.mapgen_timer = 0.0;
+                    self.mapgen_index += 1;
+                    if self.mapgen_index >= self.mapgen_history.len() {
+                        newrunstate = self.mapgen_next_state.unwrap();
+                    }
+                }
+            }
             RunState::PreRun => {
                 self.run_systems();
                 self.ecs.maintain();
@@ -354,8 +378,12 @@ impl State {
     }
 
     fn generate_world_map(&mut self, new_depth : i32) {
+        self.mapgen_index = 0;
+        self.mapgen_timer = 0.0;
+        self.mapgen_history.clear();
         let mut builder = map_builders::random_builder(new_depth);
         builder.build_map();
+        self.mapgen_history = builder.get_snapshot_history();
         let player_start;
         {
             let mut worldmap_resource = self.ecs.write_resource::<Map>();
@@ -395,7 +423,11 @@ fn main() -> rltk::BError {
     context.with_post_scanlines(true);  
 
     let mut gs = State {
-        ecs: World::new()
+        ecs: World::new(),
+        mapgen_next_state : Some(RunState::MainMenu{ menu_selection: gui::MainMenuSelection::NewGame }),
+        mapgen_index : 0,
+        mapgen_history: Vec::new(),
+        mapgen_timer: 0.0
     };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
@@ -442,7 +474,7 @@ fn main() -> rltk::BError {
 
     let player_entity = spawner::player(&mut gs.ecs, 0, 0);
     gs.ecs.insert(player_entity);
-    gs.ecs.insert(RunState::MainMenu { menu_selection: gui::MainMenuSelection::NewGame });
+    gs.ecs.insert(RunState::MapGeneration);
     gs.ecs.insert(gamelog::GameLog{ entries : vec!["Welcome to Rusty Roguelike".to_string()] });
     gs.ecs.insert(particle_system::ParticleBuilder::new());
     gs.ecs.insert(rex_assets::RexAssets::new());
