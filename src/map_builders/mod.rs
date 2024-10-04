@@ -20,7 +20,7 @@ use voronoi::VoronoiBuilder;
 mod waveform_collapse;
 use waveform_collapse::WaveformCollapseBuilder;
 mod prefab_builder;
-use prefab_builder::PrefabBuilder;
+use prefab_builder::*;
 mod common;
 use common::*;
 use specs::prelude::*;
@@ -70,13 +70,16 @@ pub fn random_builder(new_depth: i32) -> Box<dyn MapBuilder> {
     // result
 
     Box::new(
-        PrefabBuilder::new(
-            new_depth, 
-            Some(
-                Box::new(
-                    CellularAutomataBuilder::new(new_depth)
-                )
-            )
+        PrefabBuilder::vaults(
+            new_depth,
+            Box::new(PrefabBuilder::sectional(
+                new_depth,
+                prefab_builder::prefab_sections::UNDERGROUND_FORT,
+                Box::new(WaveformCollapseBuilder::derived_map(
+                    new_depth, 
+                    Box::new(CellularAutomataBuilder::new(new_depth))
+                ))
+            ))
         )
     )
 }
