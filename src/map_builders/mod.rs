@@ -23,6 +23,7 @@ mod room_corner_rounding;
 mod rooms_corridors_dogleg;
 mod rooms_corridors_bsp;
 mod room_sorter;
+mod room_draw;
 use distant_exit::DistantExit;
 use simple_map::SimpleMapBuilder;
 use bsp_dungeon::BspDungeonBuilder;
@@ -45,6 +46,7 @@ use rooms_corridors_bsp::BspCorridors;
 use room_sorter::*;
 use maze::MazeBuilder;
 use dla::DLABuilder;
+use room_draw::RoomDrawer;
 use common::*;
 
 pub struct BuilderMap {
@@ -168,6 +170,8 @@ fn random_room_builder(rng: &mut rltk::RandomNumberGenerator, builder : &mut Bui
             4 => builder.with(RoomSorter::new(RoomSort::BOTTOMMOST)),
             _ => builder.with(RoomSorter::new(RoomSort::CENTRAL)),
         }
+
+        builder.with(RoomDrawer::new());
 
         let corridor_roll = rng.roll_dice(1, 2);
         match corridor_roll {
