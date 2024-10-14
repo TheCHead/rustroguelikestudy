@@ -24,6 +24,9 @@ mod rooms_corridors_dogleg;
 mod rooms_corridors_bsp;
 mod room_sorter;
 mod room_draw;
+mod rooms_corridors_nearest;
+mod rooms_corridors_lines;
+mod room_corridor_spawner;
 use distant_exit::DistantExit;
 use simple_map::SimpleMapBuilder;
 use bsp_dungeon::BspDungeonBuilder;
@@ -47,6 +50,9 @@ use room_sorter::*;
 use maze::MazeBuilder;
 use dla::DLABuilder;
 use room_draw::RoomDrawer;
+use rooms_corridors_nearest::NearestCorridors;
+use rooms_corridors_lines::StraightLineCorridors;
+use room_corridor_spawner::CorridorSpawner;
 use common::*;
 
 pub struct BuilderMap {
@@ -54,6 +60,7 @@ pub struct BuilderMap {
     pub map : Map,
     pub starting_position : Option<Position>,
     pub rooms: Option<Vec<Rect>>,
+    pub corridors: Option<Vec<Vec<usize>>>,
     pub history : Vec<Map>
 }
 
@@ -85,6 +92,7 @@ impl BuilderChain {
                 map: Map::new(new_depth),
                 starting_position: None,
                 rooms: None,
+                corridors: None,
                 history : Vec::new()
             }
         }
@@ -173,9 +181,11 @@ fn random_room_builder(rng: &mut rltk::RandomNumberGenerator, builder : &mut Bui
 
         builder.with(RoomDrawer::new());
 
-        let corridor_roll = rng.roll_dice(1, 2);
+        let corridor_roll = rng.roll_dice(1, 4);
         match corridor_roll {
             1 => builder.with(DoglegCorridors::new()),
+            2 => builder.with(NearestCorridors::new()),
+            3 => builder.with(StraightLineCorridors::new()),
             _ => builder.with(BspCorridors::new())
         }
 
@@ -184,6 +194,11 @@ fn random_room_builder(rng: &mut rltk::RandomNumberGenerator, builder : &mut Bui
             1 => builder.with(RoomExploder::new()),
             2 => builder.with(RoomCornerRounder::new()),
             _ => {}
+        }
+
+        let cspawn_roll = rng.roll_dice(1, 2);
+        if cspawn_roll == 1 {
+            builder.with(CorridorSpawner::new());
         }
     }
 
